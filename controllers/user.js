@@ -1,31 +1,59 @@
 import {response} from 'express'
-
-export const usuariosGet=(req,res=response)=>{
+import Usuario from '../models/usuario.js'
+import bcryptjs from 'bcryptjs'
+import { validationResult } from 'express-validator'
+export const usuariosGet=async(req,res=response)=>{
+    const {limite="5",desde=0}=req.query
+    const [total,usuarios]=await Promise.all([
+        Usuario.countDocuments({estado:true}),
+        Usuario.find({estado:true})
+        .skip(Number(desde))
+        .limit(Number(limite))
+    ])
     res.json({
-        msg:'get API controlador'
+        total,
+        usuarios
     })
 }
 
-export const usuariosPut=(req,res=response)=>{
+export const usuariosPut=async(req,res=response)=>{
+    const {id}=req.params
+    const {_id,password,google,correo,...resto}=req.body
+    if(password){
+        const salt=bcryptjs.genSaltSync()
+        resto.password=bcryptjs.hashSync(password,salt)
+    }
+    const usuario=await Usuario.findByIdAndUpdate(id,resto,{new:true})
     res.json({
-        msg:'put API'
+        usuario
     })
 }
 
 
-export const usuariosPost=(req,res=response)=>{
-    const {nombre,edad}=req.body
-    const {q}=req.query
-    res.json({
-        msg:'post API'
+export const usuariosPost=async(req,res=response)=>{
+    const {nombre,correo,password,rol}=req.body
+    const usuario=new Usuario({nombre,correo,password,rol})
+
+    //Encriptar la contraseña 
+    const salt=bcryptjs.genSaltSync()
+    usuario.password=bcryptjs.hashSync(password,salt)
+
+    //Guardar en la base de datos
+
+    await usuario.save()
+    return res.json({
+        msg:'post API',
+        usuario
     })
-    // console.log(nombre,edad)
-    console.log(q)
-    
 }
 
-export const usuariosDelete=(req,res=response)=>{
+export const usuariosDelete=async(req,res=response)=>{
+    const {id}=req.params
+    //Borrado fisico 
+    // const usuario=await Usuario.findByIdAndRemove(id)
+    //Borrado logico 
+    const usuario=await Usuario.findByIdAndUpdate(id,{estado:false},{new:true})
     res.json({
-        msg:'delete API'
+        usuario
     })
 }
